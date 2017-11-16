@@ -3,5 +3,7 @@
 
 namespace lsp {
 class MessageWriter {};
+
+class StdoutMessageWriter : public MessageWriter {};
 }; // namespace lsp
 #endif

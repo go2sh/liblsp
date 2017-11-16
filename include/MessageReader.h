@@ -1,5 +1,6 @@
 #ifndef LSP_MESSAGEREADER_H
 #define LSP_MESSAGEREADER_H
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -12,29 +13,35 @@ using json = nlohmann::json;
 
 namespace lsp {
 
-const char *LENGTH_HEADER = "Content-Length: ";
-
+typedef std::shared_ptr<json> JsonPtr;
 typedef std::vector<std::pair<std::string, std::string>> HeaderList;
 class Message {
-  asio::streambuf Buffer;
-  json Message;
+  std::vector<char> Buffer;
+  JsonPtr Data;
   HeaderList Headers;
 
 private:
   std::size_t Length;
 
 public:
-  asio::streambuf &getBuffer() { return Buffer; }
-  std::size_t getLength() { return Length; }
-  void setLength(std::size_t Length) { Length = Length; }
+  static const char *LENGTH_HEADER;
 
-  HeaderList &tryParseHeader();
-  json &tryParseBody();
+  Message() : Buffer() { Buffer.reserve(1024); }
+
+  std::vector<char> &getBuffer() { return Buffer; }
+  std::size_t getLength() { return Length; }
+  HeaderList &getHeaders() { return Headers; }
+  JsonPtr getData() { return Data; }
+  void setLength(std::size_t Len) { Length = Len; }
+  void appendBuffer(const char &Byte) { Buffer.push_back(Byte); }
+
+  bool tryParseHeader();
+  bool tryParseBody();
 };
 
 typedef std::function<void(const std::string &)> ErrorFunction;
 typedef std::function<void(void)> CloseFunction;
-typedef std::function<void(json &)> CallbackFunction;
+typedef std::function<void(JsonPtr)> CallbackFunction;
 
 class MessageReader {
 
@@ -50,12 +57,8 @@ public:
   void setErrorHandler(ErrorFunction Handler) { error = Handler; }
   void setCloseHandler(CloseFunction Handler) { close = Handler; }
 
-  void listen(CallbackFunction Handler) {
-    callback = Handler;
-    read();
-  }
+  void listen(CallbackFunction Handler) { callback = Handler; }
 
-private:
   virtual void read() = 0;
 };
 
@@ -65,9 +68,14 @@ class SocketMessageReader : public MessageReader {
 public:
   SocketMessageReader(tcp::socket &Socket) : Socket(Socket) {}
 
-private:
   virtual void read();
 };
 
+class StdinMessageReader : public MessageReader {
+public:
+  StdinMessageReader() {}
+
+  virtual void read();
+};
 }; // namespace lsp
 #endif

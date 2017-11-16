@@ -1,6 +1,8 @@
 #ifndef LSP_MESSAGECONNECTION_H
 #define LSP_MESSAGECONNECTION_H
 #include <functional>
+#include <queue>
+#include <thread>
 
 #include <json.hpp>
 
@@ -12,10 +14,11 @@ using json = nlohmann::json;
 
 namespace lsp {
 
-  typedef std::function<void(std::string&,std::string&, json&)> RequestHandler;
-  typedef std::function<void(std::string&, json&)> NotificationHandler;
-  typedef std::function<void(std::string&, json&)> ResponseHandler;
-  typedef std::function<void(std::string&, json&)> ErrorHandler;
+typedef std::function<void(std::string &, std::string &, json &)>
+    RequestHandler;
+typedef std::function<void(std::string &, json &)> NotificationHandler;
+typedef std::function<void(std::string &, json &)> ResponseHandler;
+typedef std::function<void(std::string &, json &)> ErrorHandler;
 
 class MessageConnection {
   MessageReader *Reader;
@@ -27,25 +30,35 @@ class MessageConnection {
   ResponseHandler onResponse;
   ErrorHandler onError;
 
+  std::queue<JsonPtr> MessageQueue;
+  std::thread QueueThread;
+
 public:
-  MessageConnection(MessageReader *Reader, MessageWriter *Writer,
-                    Logger *Log) : Reader(Reader), Writer(Writer), Log(Log) {
-    Reader->setErrorHandler(
-        std::bind(&MessageConnection::errorHandler, this, std::placeholders::_1));
+  MessageConnection(MessageReader *Reader, MessageWriter *Writer, Logger *Log)
+      : Reader(Reader), Writer(Writer), Log(Log) {
+    Reader->setErrorHandler(std::bind(&MessageConnection::errorHandler, this,
+                                      std::placeholders::_1));
     Reader->setCloseHandler(std::bind(&MessageConnection::closeHandler, this));
 
-    Reader->listen(std::bind(&MessageConnection::messageHandler,this,std::placeholders::_1));
+    Reader->listen(std::bind(&MessageConnection::messageHandler, this,
+                             std::placeholders::_1));
   };
 
-  void setRequestHandler(RequestHandler Handler) {onRequest = Handler;}
-  void setNotificationHandler(NotificationHandler Handler) {onNotification = Handler;}
-  void setResponseHandler(ResponseHandler Handler) {onResponse = Handler;}
-  void setErrorHandler(ErrorHandler Handler) {onError = Handler;}
+  void setRequestHandler(RequestHandler Handler) { onRequest = Handler; }
+  void setNotificationHandler(NotificationHandler Handler) {
+    onNotification = Handler;
+  }
+  void setResponseHandler(ResponseHandler Handler) { onResponse = Handler; }
+  void setErrorHandler(ErrorHandler Handler) { onError = Handler; }
+
+  void run();
 
 private:
   void errorHandler(const std::string &Message);
   void closeHandler();
-  void messageHandler(json &Message);
+  void messageHandler(JsonPtr Data);
+
+  void processMessageQueue();
 };
 }; // namespace lsp
 #endif
