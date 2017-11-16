@@ -5,7 +5,7 @@
 #include <list>
 #include <json.hpp>
 
-#ifdef HAS_CXX17
+#ifndef HAS_CXX17
 #include <optional.hpp>
 using nonstd::optional;
 using nonstd::nullopt;
@@ -16,6 +16,7 @@ using std::optional;
 
 using json = nlohmann::json;
 
+namespace lsp {
 
 enum class TraceLevels {
     Off,
@@ -40,10 +41,10 @@ struct Range {
 };
 
 struct Location {
-    Location(const std::string &DocumentUri, const Range &Range) : DocumentUri(DocumentUri), Range(Range) {}
+    Location(const std::string &DocumentUri, const lsp::Range &Range) : DocumentUri(DocumentUri), Range(Range) {}
 
     std::string DocumentUri;
-    Range Range;
+    lsp::Range Range;
 
     json dump();
 };
@@ -59,7 +60,7 @@ struct InitializeParams {
 
 struct TextDocumentPositionParams {
     std::string DocumentUri;
-    Position Position;
+    lsp::Position Position;
 
     void parse(json::object_t *Params);
 };
@@ -76,9 +77,11 @@ struct MarkedString {
 
 struct Hover {
     std::list<MarkedString> Contents;
-    optional<Range> Range;
+    optional<lsp::Range> Range;
 
     json dump();
+};
+
 };
 
 #endif // !LSPROTOCOL_H

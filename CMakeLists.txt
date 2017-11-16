@@ -9,6 +9,7 @@ CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
 if (COMPILER_SUPPORTS_CXX17)
   add_definitions(-DHAS_CXX17)
 endif()
+set(CXX_STANDARD 17)
 
 
 if (DEFINED ASIO_DIRECTORY)
@@ -26,4 +27,5 @@ find_package(json REQUIRED)
 include_directories(${json_INCLUDE_DIR})
 
 add_subdirectory(lib/)
+add_subdirectory(tests/)
 

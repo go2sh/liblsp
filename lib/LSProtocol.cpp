@@ -5,6 +5,8 @@ using json = nlohmann::json;
 
 #include "LSProtocol.h"
 
+using namespace lsp;
+
 void Position::parse(json::object_t *Position) {
   if (Position->find("line") != Position->end()) {
     if ((*Position)["line"].is_number_unsigned()) {
