@@ -1,9 +1,20 @@
 #ifndef LSP_MESSAGEWRITER_H
 #define LSP_MESSAGEWRITER_H
 
-namespace lsp {
-class MessageWriter {};
+#include <json.hpp>
 
-class StdoutMessageWriter : public MessageWriter {};
+using json = nlohmann::json;
+
+namespace lsp {
+class MessageWriter {
+
+public:
+    virtual void write(json & Data) = 0;
+};
+
+class StdoutMessageWriter : public MessageWriter {
+    public:
+    virtual void write(json & Data);
+};
 }; // namespace lsp
 #endif

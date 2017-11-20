@@ -4,7 +4,6 @@
 
 #include <asio.hpp>
 using asio::ip::tcp;
-#include <windows.h>
 
 #include "MessageConnection.h"
 #include "MessageReader.h"
