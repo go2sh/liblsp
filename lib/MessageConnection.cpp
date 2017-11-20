@@ -1,3 +1,4 @@
+#include <sstream>
 
 #include "MessageConnection.h"
 #include "LSProtocol.h"
@@ -95,6 +96,16 @@ void MessageConnection::replyError(const json &Id,
 template <typename T>
 void MessageConnection::replyError(const ErrorResponse<T> &Response) {
   replyError(json(), Response);
+}
+
+void MessageConnection::notify(const std::string & Method, const json & Data) {
+  json Request;
+
+  Request["jsonrpc"] = "2.0";
+  Request["method"] = Method;
+  Request["params"] = Data;
+
+  Writer->write(Request);
 }
 
 void MessageConnection::processMessageQueue() {

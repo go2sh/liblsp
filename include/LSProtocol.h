@@ -92,6 +92,25 @@ struct InitializeParams {
   void parse(json::object_t *Params);
 };
 
+
+enum class MessageType {
+	  Error = 1,
+
+	  Warning = 2,
+
+	  Info = 3,
+
+	  Log = 4
+};
+
+struct LogMessageParams {
+  MessageType type;
+  std::string message;
+
+  friend void to_json(json & Data, const LogMessageParams & Params);
+  friend void from_json(const json & Data,LogMessageParams & Params);
+};
+
 struct TextDocumentPositionParams {
   std::string DocumentUri;
   lsp::Position Position;

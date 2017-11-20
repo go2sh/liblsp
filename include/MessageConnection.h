@@ -58,6 +58,9 @@ public:
   template<typename T>
   void replyError(const ErrorResponse<T> & Response);
 
+  void call(const std::string & Method, const json & Params, json & Result);
+  void notify(const std::string & Method, const json & Data);
+
   void processMessageQueue();
 
 private:
