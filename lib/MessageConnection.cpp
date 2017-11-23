@@ -1,7 +1,7 @@
 #include <sstream>
 
-#include "MessageConnection.h"
 #include "LSProtocol.h"
+#include "MessageConnection.h"
 
 using namespace lsp;
 
@@ -69,7 +69,7 @@ void MessageConnection::messageHandler(JsonPtr Data) {
     // Handle msg as response
     std::unique_lock<std::mutex> Lock(ResponseMutex);
     ResponseMap[getId(*Id)] = Data;
-    ResponseCV.notify_one();
+    ResponseCV.notify_all();
   } else {
     replyError(ErrorResponse<EmptyResponse>(ErrorCode::InvalidRequest,
                                             "Method or id is required."));
@@ -98,11 +98,35 @@ void MessageConnection::replyError(const ErrorResponse<T> &Response) {
   replyError(json(), Response);
 }
 
-void MessageConnection::notify(const std::string & Method, const json & Data) {
+void MessageConnection::notify(const std::string &Method, const json &Data) {
   json Request;
 
   Request["jsonrpc"] = "2.0";
   Request["method"] = Method;
+  Request["params"] = Data;
+
+  Writer->write(Request);
+}
+
+void MessageConnection::call(const std::string &Method, const json &Data) {
+  stringstream IdStream;
+  IdStream << Method << "-" << IdCounter;
+
+  std::string Id = IdStream.str();
+  request(Method, Id, Data);
+
+  std::unique_lock<std::mutex> Lock(ResponseMutex);
+  ResponseCV.wait(
+      Lock, [this]() { return ResponseMap.find(Id) != ResponseMap.end(); });
+}
+
+void MessageConnection::request(const std::string &Method,
+                                const std::string &Id, const json &Data) {
+  json Request;
+
+  Request["jsonrpc"] = "2.0";
+  Request["method"] = Method;
+  Request["id"] = Id;
   Request["params"] = Data;
 
   Writer->write(Request);
@@ -120,25 +144,38 @@ void MessageConnection::processMessageQueue() {
   json &Message = *Data;
   std::string Method = Message.find("method")->get<std::string>();
   auto Id = Message.find("id");
+  json Response;
 
   if (Id != Message.end()) {
     auto Handler = RequestHandlers.find(Method);
     if (Handler != RequestHandlers.end()) {
-      json Resp;
-      (Handler->second)(Message, Resp);
-      Writer->write(Resp);
+      Response["jsonrpc"] = "2.0";
+      Response["id"] = *Id;
+
+      try {
+        (Handler->second)(Message, Response["result"]);
+      } catch (const json::out_of_range &E) {
+        replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::InvalidParams,
+                                                     E.what()));
+      } catch (...) {
+        replyError(*Id,
+                   ErrorResponse<EmptyResponse>(ErrorCode::InternalError,
+                                                "Unexpected error happend"));
+      }
+      Writer->write(Response);
     } else {
-      replyError(Message["id"],
-                 ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
-                                              "Method not found."));
+      replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
+                                                   "Method not found"));
     }
   } else {
     auto Handler = NotificationHandlers.find(Method);
     if (Handler != NotificationHandlers.end()) {
-      (Handler->second)(Message);
+      try {
+        (Handler->second)(Message, Response["result"]);
+      } catch (...) {
+      }
     } else {
-      replyError(ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
-                                              "Method not found."));
+      Logger->logError("Notification request to unimplemented method:" + Method);
     }
   }
 

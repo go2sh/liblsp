@@ -4,15 +4,8 @@
 #include <json.hpp>
 #include <list>
 #include <string>
-
-#ifndef HAS_CXX17
-#include <optional.hpp>
-using nonstd::nullopt;
-using nonstd::optional;
-#else
 #include <optional>
-using std::optional;
-#endif
+
 
 using json = nlohmann::json;
 
