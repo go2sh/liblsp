@@ -5,6 +5,7 @@ add_library(lsp
     MessageReader.cpp
     MessageWriter.cpp
     MessageConnection.cpp
+    LanguageServer.cpp
     ServerConnection.cpp
 )
 

@@ -108,16 +108,30 @@ void MessageConnection::notify(const std::string &Method, const json &Data) {
   Writer->write(Request);
 }
 
-void MessageConnection::call(const std::string &Method, const json &Data) {
-  stringstream IdStream;
-  IdStream << Method << "-" << IdCounter;
+JsonPtr MessageConnection::call(const std::string &Method, const json &Data) {
+  std::stringstream IdStream;
+  IdStream << Method << "-" << IdCounter++;
 
   std::string Id = IdStream.str();
   request(Method, Id, Data);
 
   std::unique_lock<std::mutex> Lock(ResponseMutex);
-  ResponseCV.wait(
-      Lock, [this]() { return ResponseMap.find(Id) != ResponseMap.end(); });
+  ResponseCV.wait(Lock, [this, &Id]() {
+    return ResponseMap.find(Id) != ResponseMap.end();
+  });
+
+  auto Itr = ResponseMap.find(Id);
+  JsonPtr Ptr = Itr->second;
+  json &Response = *Ptr;
+
+  ResponseMap.erase(Itr);
+  if (Response.find("error") != Response.end()) {
+    // Maybe throw
+  }
+  if (Response.find("result") == Response.end()) {
+    // Maybe throw
+  }
+  return Ptr;
 }
 
 void MessageConnection::request(const std::string &Method,
@@ -144,16 +158,16 @@ void MessageConnection::processMessageQueue() {
   json &Message = *Data;
   std::string Method = Message.find("method")->get<std::string>();
   auto Id = Message.find("id");
+  auto Handler = RequestHandlers.find(Method);
   json Response;
 
-  if (Id != Message.end()) {
-    auto Handler = RequestHandlers.find(Method);
-    if (Handler != RequestHandlers.end()) {
+  if (Handler != RequestHandlers.end()) {
+    if (Id != Message.end()) {
       Response["jsonrpc"] = "2.0";
       Response["id"] = *Id;
 
       try {
-        (Handler->second)(Message, Response["result"]);
+        (Handler->second)(Message["params"], Response["result"]);
       } catch (const json::out_of_range &E) {
         replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::InvalidParams,
                                                      E.what()));
@@ -164,20 +178,19 @@ void MessageConnection::processMessageQueue() {
       }
       Writer->write(Response);
     } else {
-      replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
-                                                   "Method not found"));
-    }
-  } else {
-    auto Handler = NotificationHandlers.find(Method);
-    if (Handler != NotificationHandlers.end()) {
       try {
-        (Handler->second)(Message, Response["result"]);
+        (Handler->second)(Message["params"], Response["result"]);
       } catch (...) {
       }
+    }
+  } else {
+    if (Id != Message.end()) {
+      replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
+                                                   "Method not found"));
     } else {
-      Logger->logError("Notification request to unimplemented method:" + Method);
+      Log->logError("Notification request to unimplemented method:" +
+                       Method);
     }
   }
-
   RequestQueue.pop();
 }

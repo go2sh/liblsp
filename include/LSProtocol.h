@@ -3,9 +3,10 @@
 
 #include <json.hpp>
 #include <list>
-#include <string>
 #include <optional>
+#include <string>
 
+template <typename T> using optional = std::optional<T>;
 
 using json = nlohmann::json;
 
@@ -60,6 +61,11 @@ struct Position {
     Data["character"] = P.Character;
   }
 
+  friend void from_json(const json &Data, Position &P) {
+    P.Line = Data.at("line");
+    P.Character = Data.at("character");
+  }
+
   void parse(json::object_t *Position);
   json dump();
 };
@@ -106,6 +112,7 @@ struct Diagnostic {
   std::optional<std::string> Source;
   std::string Message;
 
+  Diagnostic() {}
   Diagnostic(const lsp::Range &Range, const std::string &Message)
       : Range(Range), Message(Message) {}
   Diagnostic(const lsp::Range &Range, const std::string &Message,
@@ -127,6 +134,16 @@ struct Diagnostic {
     if (Diag.Source) {
       Data["source"] = *Diag.Source;
     }
+  }
+};
+
+struct PublishDiagnosticsParams {
+  std::string Uri;
+  std::vector<Diagnostic> Diagnostics;
+
+  friend void to_json(json &Data, const PublishDiagnosticsParams &PDP) {
+    Data["uri"] = PDP.Uri;
+    Data["diagnostics"] = PDP.Diagnostics;
   }
 };
 
@@ -158,13 +175,23 @@ struct TextDocumentIdentifier {
   friend void to_json(json &Data, const TextDocumentIdentifier &I) {
     Data["uri"] = I.Uri;
   }
+
+  friend void from_json(const json &Data, TextDocumentIdentifier &I) {
+    I.Uri = Data.at("uri");
+  }
 };
 
-struct VersionedTextDocumentIdentifier {
+struct VersionedTextDocumentIdentifier : public TextDocumentIdentifier {
   uint32_t Version;
 
   friend void to_json(json &Data, const VersionedTextDocumentIdentifier &V) {
+    Data["uri"] = V.Uri;
     Data["version"] = V.Version;
+  }
+
+  friend void from_json(const json &Data, VersionedTextDocumentIdentifier &V) {
+    V.Uri = Data.at("uri");
+    V.Version = Data.at("version");
   }
 };
 
@@ -224,12 +251,98 @@ struct DocumentFilter {
   }
 };
 
-struct InitializeParams {
-  uint32_t ProcessId;
-  std::string DocumentUri = "";
-  TraceLevels TraceLevel;
+struct ClientCapabilities {
 
-  void parse(json::object_t *Params);
+  friend void from_json(const json &Data, ClientCapabilities &CC) {}
+};
+struct EmptyInitializationOptions {
+  friend void from_json(const json &Data,
+                        EmptyInitializationOptions &Options){};
+};
+
+template <typename T> struct InitializeParams {
+  uint32_t ProcessId;
+  std::string RootUri = "";
+  TraceLevels TraceLevel = TraceLevels::Off;
+  optional<T> InitializationOptions;
+  ClientCapabilities Capabilities;
+
+  friend void from_json(const json &Data, InitializeParams<T> &Params) {
+    Params.ProcessId = Data.at("processId").get<uint32_t>();
+    auto Uri = Data.find("rootUri");
+    if (Uri != Data.end()) {
+      if ((*Uri).is_null()) {
+        Params.RootUri = "";
+      } else {
+        Params.RootUri = *Uri;
+      }
+    } else {
+      auto Path = Data.find("rootPath");
+      if (Path != Data.end()) {
+        if ((*Path).is_null()) {
+          Params.RootUri = "";
+        } else {
+          Params.RootUri = *Path;
+        }
+      }
+    }
+
+    auto InitOptions = Data.find("initializationOptions");
+    if (InitOptions != Data.end())
+      Params.InitializationOptions = *InitOptions;
+    Params.Capabilities = Data.at("capabilities");
+    auto TraceLevel = Data.find("traceLevel");
+    if (TraceLevel != Data.end())
+      Params.TraceLevel = *TraceLevel;
+  }
+};
+
+enum class TextDocumentSyncKind { None = 0, Full = 1, Incremental = 2 };
+
+struct SaveOptions {
+  bool IncluedeText = false;
+
+  friend void to_json(json &Data, const SaveOptions &O);
+};
+void to_json(json &Data, const SaveOptions &O);
+
+struct TextDocumentSyncOptions {
+  bool OpenClose;
+  TextDocumentSyncKind Change;
+  bool WillSave;
+  bool WillSaveWaitUntil;
+  SaveOptions Save;
+
+  friend void to_json(json &Data, const TextDocumentSyncOptions &O);
+};
+void to_json(json &Data, const TextDocumentSyncOptions &O);
+
+struct CompletionOptions {
+  bool ResolveProvider = false;
+  std::vector<std::string> TriggerCharacters;
+
+  friend void to_json(json &Data, const TextDocumentSyncOptions &O);
+};
+void to_json(json &Data, const CompletionOptions &O);
+
+struct ServerCapabilities {
+  TextDocumentSyncOptions TextDocumentSync;
+  bool HoverProvider;
+  CompletionOptions CompletionProvider;
+
+  friend void to_json(json &Data, const ServerCapabilities &SC) {
+    Data["textDocumentSync"] = SC.TextDocumentSync;
+    Data["hoverProvider"] = SC.HoverProvider;
+    Data["completionProvider"] = SC.CompletionProvider;
+  }
+};
+
+struct InitializeResult {
+  ServerCapabilities Capabilities;
+
+  friend void to_json(json &Data, const InitializeResult &IR) {
+    Data["capabilities"] = IR.Capabilities;
+  }
 };
 
 enum class MessageType { Error = 1, Warning = 2, Info = 3, Log = 4 };
@@ -242,30 +355,89 @@ struct LogMessageParams {
   friend void from_json(const json &Data, LogMessageParams &Params);
 };
 
+void to_json(json &Data, const LogMessageParams &Params);
+void from_json(const json &Data, LogMessageParams &Params);
+
 struct TextDocumentPositionParams {
-  std::string DocumentUri;
+  lsp::TextDocumentIdentifier TextDocument;
   lsp::Position Position;
 
-  void parse(json::object_t *Params);
+  friend void from_json(const json &Params, TextDocumentPositionParams &TDP);
 };
+void from_json(const json &Params, TextDocumentPositionParams &TDP);
 
-struct MarkedString {
-  MarkedString(const std::string &Value) : Value(Value){};
-  MarkedString(const std::string &Value, const std::string &Language)
+enum class MarkupKind { Plaintext, Markdown };
+
+struct MarkupContent {
+  MarkupContent() {}
+  MarkupContent(const std::string &Value) : Value(Value){};
+  MarkupContent(const std::string &Value, const std::string &Language)
       : Value(Value), Language(Language){};
 
-  std::string Value;
+  std::string Value = "";
   std::string Language = "";
+  lsp::MarkupKind Kind = lsp::MarkupKind::Plaintext;
 
-  json dump();
+  friend void to_json(json &Data, const MarkupContent &MC) {
+    Data["value"] = MC.Value;
+    Data["language"] = MC.Language;
+  }
 };
 
 struct Hover {
-  std::list<MarkedString> Contents;
+  lsp::MarkupContent Contents;
   optional<lsp::Range> Range;
 
-  json dump();
+  Hover() {}
+
+  friend void to_json(json &Data, const Hover &H) {
+    Data["contents"] = H.Contents;
+    if (H.Range.has_value()) {
+      Data["range"] = H.Range.value();
+    }
+  }
 };
+
+enum class CompletionTriggerKind { Invoked = 1, TriggerCharacter = 2 };
+
+enum class InsertTextFormat { PlainText = 1, Snippet = 2 };
+
+struct CompletionContext {
+  CompletionTriggerKind TriggerKind;
+  std::string TriggerCharacter;
+
+  friend void from_json(const json &Data, CompletionContext &CC);
+};
+void from_json(const json &Data, CompletionContext &CC);
+
+struct CompletionParams : public TextDocumentPositionParams {
+  optional<CompletionContext> Context;
+  
+  friend void from_json(const json &Data, CompletionParams &CP);
+};
+void from_json(const json &Data, CompletionParams &CP);
+
+struct EmptyCompletionData {};
+
+template <typename T> struct CompletionItem {
+  std::string Label;
+  uint32_t Kind = 1;
+
+  optional<std::string> Detail;
+  optional<lsp::MarkupContent> Documentation;
+  optional<std::string> SortText;
+  optional<std::string> FilterText;
+  optional<std::string> InsertText;
+  lsp::InsertTextFormat InsertTextFormat;
+  optional<lsp::TextEdit> TextEdit;
+  std::vector<lsp::TextEdit> AdditionalTextEdits;
+  std::vector<std::string> CommitCharacters;
+  lsp::Command Command;
+  T Data;
+
+  friend void to_json(json &Data, const CompletionItem<EmptyCompletionData> &Item);
+};
+void to_json(json &Data, const CompletionItem<EmptyCompletionData> &Item);
 
 }; // namespace lsp
 
