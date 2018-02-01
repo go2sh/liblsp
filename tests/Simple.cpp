@@ -45,6 +45,19 @@ public:
     Result.push_back(I);
     return Result;
   }
+
+  virtual void textDocumentDidChange(const lsp::TextDocumentDidChangeParams &Params) {
+    SourceManager SrcMgr;
+    SourceFile File = SrcMgr.createSourceFile(Params.TextDocument.Path);
+    SourceLocation Loc = SourceLocation::fromRawEncoding(1);
+    DiagnosticEngine Engine;
+    StdConsumer Consumer(SrcMgr);
+    Engine.addConsumer(&Consumer);
+    Lexer lexer(Engine, Loc, SrcMgr.getBuffer(File));
+    Parser P(Engine, &lexer);
+    P.parseDesignFile();
+
+  }
 };
 
 int main(int argc, char **argv) {

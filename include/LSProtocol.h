@@ -79,6 +79,11 @@ struct Range {
     Data["end"] = R.End;
   }
 
+  friend void from_json(const json &Data, Range R) {
+    R.Start = Data.at("start");
+    R.End = Data.at("end");
+  }
+
   void parse(json::object_t *Position);
   json dump();
 };
@@ -359,12 +364,32 @@ void to_json(json &Data, const LogMessageParams &Params);
 void from_json(const json &Data, LogMessageParams &Params);
 
 struct TextDocumentPositionParams {
-  lsp::TextDocumentIdentifier TextDocument;
+  lsp::VersionedTextDocumentIdentifier TextDocument;
   lsp::Position Position;
 
   friend void from_json(const json &Params, TextDocumentPositionParams &TDP);
 };
 void from_json(const json &Params, TextDocumentPositionParams &TDP);
+
+/*
+ * Workspace changes
+ */
+struct TextDocumentContentChangeEvent {
+	std::optional<lsp::Range> Range;
+	std::optional<uint32_t> RangeLength;
+	std::string Text;
+
+  friend void from_json(const json &Params, TextDocumentContentChangeEvent &DCP);
+};
+void from_json(const json &Params, TextDocumentContentChangeEvent &DCP);
+
+struct TextDocumentDidChangeParams {
+  lsp::VersionedTextDocumentIdentifier TextDocument;
+  std::vector<lsp::TextDocumentContentChangeEvent> ContentChanges;
+
+  friend void from_json(const json &Params, TextDocumentDidChangeParams &DCP);
+};
+void from_json(const json &Params, TextDocumentDidChangeParams &DCP);
 
 enum class MarkupKind { Plaintext, Markdown };
 

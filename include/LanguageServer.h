@@ -17,9 +17,13 @@ public:
                                          std::placeholders::_1,
                                          std::placeholders::_2));
     Connection.registerHandler("textDocument/completion",
-                               std::bind(&LanguageServer::handleCompletion, this,
-                                         std::placeholders::_1,
+                               std::bind(&LanguageServer::handleCompletion,
+                                         this, std::placeholders::_1,
                                          std::placeholders::_2));
+    Connection.registerHandler(
+        "textDocument/didChange",
+        std::bind(&LanguageServer::handleTextDocumentDidChange, this, 
+                  std::placeholders::_1, std::placeholders::_2));
   }
 
   virtual InitializeResult
@@ -27,11 +31,14 @@ public:
   virtual Hover hover(const TextDocumentPositionParams &Params) = 0;
   virtual std::vector<CompletionItem<EmptyCompletionData>>
   completion(const CompletionParams &Params) = 0;
+  virtual void
+  textDocumentDidChange(const TextDocumentDidChangeParams &Params) = 0;
 
 protected:
   void handleInitialize(const json &Params, json &Result);
   void handleHover(const json &Params, json &Result);
   void handleCompletion(const json &Params, json &Result);
+  void handleTextDocumentDidChange(const json &Params, json &Result);
 };
 
 }; // namespace lsp

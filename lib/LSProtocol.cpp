@@ -74,6 +74,26 @@ void lsp::to_json(json &Data, const TextDocumentSyncOptions &O) {
   Data["save"] = O.Save;
 }
 
+/*
+ * Workspace sync
+ */
+void lsp::from_json(const json &Data, TextDocumentContentChangeEvent &CCE) {
+  auto Range = Data.find("range");
+  if (Range != Data.end()) {
+    CCE.Range = *Range;
+  }
+  auto RL = Data.find("rangeLength");
+  if (RL != Data.end()) {
+    CCE.RangeLength = (*RL).get<uint32_t>();
+  }
+  CCE.Text = Data.at("text");
+}
+
+void lsp::from_json(const json &Params, TextDocumentDidChangeParams &DCP) {
+  DCP.TextDocument = Params.at("textDocument");
+  DCP.ContentChanges = Params.at("contentChanges").get<std::vector<lsp::TextDocumentContentChangeEvent>>();
+}
+
 void lsp::to_json(json &Data, const CompletionOptions &O) {
   Data["resolveProvider"] = O.ResolveProvider;
   Data["triggerCharacters"] = O.TriggerCharacters;

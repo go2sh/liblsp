@@ -20,3 +20,8 @@ void LanguageServer::handleCompletion(const json &Params, json &Result) {
   std::vector<CompletionItem<EmptyCompletionData>> CL = completion(Params);
   Result = CL;
 }
+
+void LanguageServer::handleTextDocumentDidChange(const json &Params, json &Result) {
+  TextDocumentDidChangeParams CP = Params;
+  textDocumentDidChange(CP);
+}

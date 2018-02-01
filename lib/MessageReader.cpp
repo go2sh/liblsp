@@ -111,10 +111,13 @@ void StdinMessageReader::read() {
     }
   }
 
+  
   PrevSize = Msg.getBuffer().size();
-  Msg.getBuffer().resize(Msg.getBuffer().capacity());
-  std::cin.read(&Msg.getBuffer()[PrevSize], Msg.getLength() - PrevSize);
-  Msg.getBuffer().resize(Msg.getLength());
+  Msg.getBuffer().reserve(Msg.getLength());
+  std::istreambuf_iterator<char> iter(std::cin);
+  std::copy_n(iter, Msg.getLength() - PrevSize,std::back_inserter(Msg.getBuffer()));
+  // Move iterator one step a head to next char
+  iter++;
 
   if (!Msg.tryParseBody()) {
     error("Failed to parse json data.");
