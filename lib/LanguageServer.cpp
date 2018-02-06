@@ -9,6 +9,14 @@ void LanguageServer::handleInitialize(const json &Params, json &Result) {
   Result = InitResult;
 }
 
+void LanguageServer::handleShutdown(const json &Params, json &Result) {
+  shutdown();
+}
+
+void LanguageServer::handleExit(const json &Params, json &Result) {
+  exit();
+}
+
 void LanguageServer::handleHover(const json &Params, json &Result) {
   TextDocumentPositionParams Position = Params;
   Hover HoverResult = hover(Position);
