@@ -66,6 +66,14 @@ public:
     RequestHandlers[Method] = Handler;
   }
 
+  template <typename ParamType, typename ReturnType, typename = std::enable_if<std::is_class<ReturnType>::value>::type>
+  void registerHandler(const std::string & Method, std::function<ReturnType(ParamType)> Handler) {
+    RequestHandlers[Method] = [=](const json & Params, json &Result) {
+      ParamType P = Params;
+      ReturnType R = Handler(Params);
+      Result = R;
+    };
+  }
   void processMessageQueue();
 
 private:
