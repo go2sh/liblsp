@@ -112,7 +112,7 @@ public:
   virtual void write(JsonPtr JsonData) {
     std::unique_lock<std::mutex> Lock(QueueMutex);
     WriteQueue.push(JsonData);
-    if (WriteMutex.try_lock()) {
+    if (WriteQueue.size() == 1) {
       startWrite();
     }
   }
@@ -121,7 +121,6 @@ private:
   void startWrite() {
     std::stringstream HeaderStream;
     JsonPtr JsonData = WriteQueue.front();
-    WriteQueue.pop();
 
     Data = JsonData->dump();
     HeaderStream << "Content-Length: " << Data.size() << "\r\n\r\n";
@@ -140,10 +139,9 @@ private:
 
   void handleBody(asio::error_code ErrorCode, std::size_t Bytes) {
     std::unique_lock<std::mutex> Lock(QueueMutex);
+    WriteQueue.pop();
     if (!WriteQueue.empty()) {
       startWrite();
-    } else {
-      WriteMutex.unlock();
     }
   }
 };
