@@ -72,5 +72,9 @@ void LanguageServer::textDocumentDidChange(
     const TextDocumentDidChangeParams &Params) {}
 
 std::vector<CompletionItem<EmptyCompletionData>>
-LanguageServer::completion(const CompletionParams &Params) {}
-Hover LanguageServer::hover(const TextDocumentPositionParams &Params) {}
+LanguageServer::completion(const CompletionParams &Params) {
+  return std::vector<CompletionItem<EmptyCompletionData>>();
+}
+Hover LanguageServer::hover(const TextDocumentPositionParams &Params) {
+  return Hover();
+}

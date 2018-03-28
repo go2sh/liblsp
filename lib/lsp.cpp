@@ -14,8 +14,8 @@ MessageConnection *lsp::createAsioTCPConnection(asio::io_service &io_service,
   tcp::resolver resolver(io_service);
   asio::connect(*s, resolver.resolve({Hostname, Port}));
 
-  AsioMessageReader<tcp::socket> *Reader = new AsioMessageReader(s);
-  AsioMessageWriter<tcp::socket> *Writer = new AsioMessageWriter(s);
+  AsioMessageReader<tcp::socket> *Reader = new AsioMessageReader<tcp::socket>(s);
+  AsioMessageWriter<tcp::socket> *Writer = new AsioMessageWriter<tcp::socket>(s);
   MessageConnection *Connection = new MessageConnection(Reader, Writer);
 
   return Connection;

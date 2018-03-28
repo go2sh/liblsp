@@ -1,7 +1,7 @@
 #ifndef LSPROTOCOL_H
 #define LSPROTOCOL_H
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <list>
 #include <optional>
 #include <string>

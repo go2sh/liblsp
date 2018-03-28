@@ -1,7 +1,7 @@
 #ifndef LSP_MESSAGEWRITER_H
 #define LSP_MESSAGEWRITER_H
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <memory>
 
 using json = nlohmann::json;
