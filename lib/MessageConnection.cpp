@@ -1,12 +1,11 @@
-#include <sstream>
+#include "lsp/MessageConnection.h"
 
-#include "LSProtocol.h"
-#include "MessageConnection.h"
+#include <sstream>
 
 using namespace lsp;
 
 void MessageConnection::errorHandler(const std::string &Message) {
-  Log->logError(Message);
+  Log->error(Message);
 }
 
 void MessageConnection::closeHandler() {}
@@ -76,34 +75,16 @@ void MessageConnection::messageHandler(JsonPtr Data) {
   }
 };
 
-void MessageConnection::run() {
-  while (true) {
-    Reader->read();
-  }
-}
-
-template <typename T>
-void MessageConnection::replyError(const json &Id,
-                                   const ErrorResponse<T> &Response) {
-  json Reply;
-  Reply["jsonrpc"] = "2.0";
-  Reply["id"] = Id;
-  Reply["error"] = Response.dump();
-
-  Writer->write(Reply);
-}
-
-template <typename T>
-void MessageConnection::replyError(const ErrorResponse<T> &Response) {
-  replyError(json(), Response);
+void MessageConnection::listen() {
+  Reader->listen(std::bind(&MessageConnection::messageHandler,this,std::placeholders::_1));
 }
 
 void MessageConnection::notify(const std::string &Method, const json &Data) {
-  json Request;
+  JsonPtr Request = std::make_shared<json>();
 
-  Request["jsonrpc"] = "2.0";
-  Request["method"] = Method;
-  Request["params"] = Data;
+  (*Request)["jsonrpc"] = "2.0";
+  (*Request)["method"] = Method;
+  (*Request)["params"] = Data;
 
   Writer->write(Request);
 }
@@ -136,12 +117,12 @@ JsonPtr MessageConnection::call(const std::string &Method, const json &Data) {
 
 void MessageConnection::request(const std::string &Method,
                                 const std::string &Id, const json &Data) {
-  json Request;
+  JsonPtr Request = std::make_shared<json>();
 
-  Request["jsonrpc"] = "2.0";
-  Request["method"] = Method;
-  Request["id"] = Id;
-  Request["params"] = Data;
+  (*Request)["jsonrpc"] = "2.0";
+  (*Request)["method"] = Method;
+  (*Request)["id"] = Id;
+  (*Request)["params"] = Data;
 
   Writer->write(Request);
 }
@@ -159,15 +140,15 @@ void MessageConnection::processMessageQueue() {
   std::string Method = Message.find("method")->get<std::string>();
   auto Id = Message.find("id");
   auto Handler = RequestHandlers.find(Method);
-  json Response;
+  JsonPtr Response = std::make_shared<json>();
 
   if (Handler != RequestHandlers.end()) {
     if (Id != Message.end()) {
-      Response["jsonrpc"] = "2.0";
-      Response["id"] = *Id;
+      (*Response)["jsonrpc"] = "2.0";
+      (*Response)["id"] = *Id;
 
       try {
-        (Handler->second)(Message["params"], Response["result"]);
+        (Handler->second)(Message["params"], (*Response)["result"]);
       } catch (const json::out_of_range &E) {
         replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::InvalidParams,
                                                      E.what()));
@@ -179,7 +160,7 @@ void MessageConnection::processMessageQueue() {
       Writer->write(Response);
     } else {
       try {
-        (Handler->second)(Message["params"], Response["result"]);
+        (Handler->second)(Message["params"], (*Response)["result"]);
       } catch (...) {
       }
     }
@@ -188,7 +169,7 @@ void MessageConnection::processMessageQueue() {
       replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
                                                    "Method not found"));
     } else {
-      Log->logError("Notification request to unimplemented method:" +
+      Log->error("Notification request to unimplemented method:" +
                        Method);
     }
   }

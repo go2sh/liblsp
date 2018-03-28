@@ -1,79 +1,11 @@
-#include "LanguageServer.h"
-#include "LanguageClient.h"
-#include "MessageConnection.h"
-#include "ServerConnection.h"
+#include "../lib/AsioMessageHandler.h"
 
-class TestServer : public lsp::LanguageServer {
-  lsp::LanguageClient *Client;
-public:
-  TestServer(lsp::LanguageClient *Client = nullptr) : Client(Client) {
-  }
-  virtual lsp::InitializeResult
-  initialize(const lsp::InitializeParams<lsp::EmptyInitializationOptions> & Params) {
-    lsp::InitializeResult Result;
-    Result.Capabilities.HoverProvider = true;
-    Result.Capabilities.CompletionProvider = {true, {".","'"}};
+#include <cstdlib>
+#include <iostream>
 
-    return Result;
-  }
+using asio::ip::tcp;
 
-  virtual lsp::Hover hover(const lsp::TextDocumentPositionParams & Params) {
-    lsp::Hover H;
-    H.Contents.Language = "vhdl";
-    H.Contents.Value = "Works";
-    lsp::PublishDiagnosticsParams Diag;
-    Diag.Uri = "file:///home/chris/Coding/hdl/test.vhd";
-    lsp::Diagnostic D;
-    D.Severity = lsp::DiagnosticSeverity::Error;
-    D.Message = "Test message";
-    D.Source = "vhdl-ls";
-    D.Range.Start = {0,0};
-    D.Range.End = {0, 1};
-    Diag.Diagnostics.push_back(D);
-    Client->publishDiagnostics(Diag);
-    lsp::LogMessageParams L;
-    L.type = lsp::MessageType::Error;
-    L.message = "asd fff";
-    Client->showMessage(L);
-    return H;
-  }
+int main(int argc, char *argv[]) {
 
-  virtual std::vector<lsp::CompletionItem<lsp::EmptyCompletionData>> completion(const lsp::CompletionParams &Params) {
-    lsp::CompletionItem<lsp::EmptyCompletionData> I;
-    std::vector<lsp::CompletionItem<lsp::EmptyCompletionData>> Result;
-    I.Label = "hase hase";
-    Result.push_back(I);
-    return Result;
-  }
-
-  virtual void textDocumentDidChange(const lsp::TextDocumentDidChangeParams &Params) {
-    SourceManager SrcMgr;
-    SourceFile File = SrcMgr.createSourceFile(Params.TextDocument.Path);
-    SourceLocation Loc = SourceLocation::fromRawEncoding(1);
-    DiagnosticEngine Engine;
-    StdConsumer Consumer(SrcMgr);
-    Engine.addConsumer(&Consumer);
-    Lexer lexer(Engine, Loc, SrcMgr.getBuffer(File));
-    Parser P(Engine, &lexer);
-    P.parseDesignFile();
-
-  }
-};
-
-int main(int argc, char **argv) {
-  lsp::StdinMessageReader Reader;
-  lsp::StdoutMessageWriter Writer;
-  lsp::StdIoLogger Log;
-  lsp::MessageConnection Connection(&Reader, &Writer, &Log);
-  lsp::ProxyLanguageClient Client(Connection);
-  TestServer Server(&Client);
-  Server.connect(Connection);
-
-  std::thread ConnectionThread =
-      std::thread([&Connection] { Connection.run(); });
-  while (true) {
-    Connection.processMessageQueue();
-  }
-
-  ConnectionThread.join();
+  return 0;
 }
