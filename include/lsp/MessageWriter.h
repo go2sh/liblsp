@@ -2,19 +2,19 @@
 #define LSP_MESSAGEWRITER_H
 
 #include <json.hpp>
+#include <memory>
 
 using json = nlohmann::json;
 
 namespace lsp {
+
+typedef std::shared_ptr<json> JsonPtr;
+/// Interface for writing sending messages
 class MessageWriter {
 
 public:
-    virtual void write(json & Data) = 0;
-};
-
-class StdoutMessageWriter : public MessageWriter {
-    public:
-    virtual void write(json & Data);
+  /// Send a json message
+  virtual void write(JsonPtr Data) = 0;
 };
 }; // namespace lsp
 #endif

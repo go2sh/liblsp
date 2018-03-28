@@ -1,4 +1,4 @@
-#include "LSProtocol.h"
+#include "lsp/LSProtocol.h"
 
 using namespace lsp;
 
