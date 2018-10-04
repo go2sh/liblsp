@@ -3,24 +3,19 @@
 #  json_FOUND        - True when the json include directory is found.
 #  json_INCLUDE_DIR  - The path to where the json include files are.
 # If json is not found, json_FOUND is set to false.
+include(FindPackageHandleStandardArgs)
+include(ExternalProject)
 
-if(NOT EXISTS "${json_INCLUDE_DIR}")
-  find_path(json_INCLUDE_DIR
-    NAMES json.hpp
-    DOC "json library header files"
-    )
-endif()
+find_path(json_INCLUDE_DIR
+  NAMES nlohmann/json.hpp
+  DOC "json library header files"
+  )
 
-if(EXISTS "${json_INCLUDE_DIR}")
-  include(FindPackageHandleStandardArgs)
-  mark_as_advanced(json_INCLUDE_DIR)
-else()
-  include(ExternalProject)
-  ExternalProject_Add(json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
+if (NOT json_INCLUDE_DIR)
+  ExternalProject_Add(json-ep
+    URL https://github.com/nlohmann/json/archive/v3.2.0.tar.g
     TIMEOUT 5
-    CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-    PREFIX "${PROJECT_BINARY_DIR}/extenal/"
+    PREFIX "${PROJECT_BINARY_DIR}/extenal"
     CONFIGURE_COMMAND "" # Disable configure step
     BUILD_COMMAND "" # Disable build step
     INSTALL_COMMAND "" # Disable install step
@@ -28,12 +23,14 @@ else()
     )
   
   # Specify include dir
-  ExternalProject_Get_Property(json source_dir)
-  set(json_INCLUDE_DIR ${source_dir}/src)
+  ExternalProject_Get_Property(json-ep source_dir)
+  set(json_INCLUDE_DIR ${source_dir}/single_include)
 endif()
 
-if(EXISTS "${json_INCLUDE_DIR}")
-  set(json_FOUND 1)
-else()
-  set(json_FOUND 0)
-endif()
+add_library(json INTERFACE)
+target_include_directories(json INTERFACE ${json_INCLUDE_DIR})
+
+mark_as_advanced(json_INCLUDE_DIR)
+find_package_handle_standard_args(json
+  REQUIRED_VARS json_INCLUDE_DIR
+  )
