@@ -1,8 +1,9 @@
 #ifndef LSP_ASIOMESSAGEHANDLER_H
 #define LSP_ASIOMESSAGEHANDLER_H
 
-#include <lsp/MessageReader.h>
-#include <lsp/MessageWriter.h>
+#include <lsp/jsonrpc/MessageReader.h>
+#include <lsp/jsonrpc/MessageWriter.h>
+#include <lsp/jsonrpc/Message.h>
 
 #include <asio.hpp>
 #include <iostream>
@@ -17,6 +18,7 @@ namespace lsp {
 template <typename AsioType> class AsioMessageReader : public MessageReader {
   std::shared_ptr<AsioType> ReadStream;
   asio::streambuf Buffer;
+  std::size_t Length = 0;
 
 public:
   AsioMessageReader(std::shared_ptr<AsioType> ReadStream)
@@ -51,22 +53,20 @@ private:
     // Handle end of header event
     if (Header.compare("\n") == 0 || Header.compare("\r\n") == 0) {
       Buffer.consume(Bytes);
-      if (CurrentMessage.getLength() > 0) {
+      if (Length > 0) {
         asio::async_read(*ReadStream, Buffer,
-                         asio::transfer_exactly(CurrentMessage.getLength()),
+                         asio::transfer_exactly(Length),
                          std::bind(&AsioMessageReader<AsioType>::handleBody,
                                    this, std::placeholders::_1,
                                    std::placeholders::_2));
       } else {
-        ErrorEmitter.emit("Invalid length set for message.");
+        ErrorEmitter.emit(Error(ErrorCode::ParseError,"Invalid length set for message."));
       }
       return;
     }
 
     // Try to parse a header element
-    if (!CurrentMessage.parseHeader(Header)) {
-      ErrorEmitter.emit("Invalid header received: " + Header);
-    }
+    Length = MessageReader::getLength(Header);
 
     // Consume the data in the buffer and restart the read
     Buffer.consume(Bytes);
@@ -77,17 +77,17 @@ private:
   }
 
   void handleBody(asio::error_code ErrorCode, std::size_t Bytes) {
-    std::string Body(asio::buffers_begin(Buffer.data()),
-                     asio::buffers_begin(Buffer.data()) + Bytes);
+    std::istream Stream(&Buffer);
+    MessagePtr Msg;
 
-    if (!CurrentMessage.parseBody(Body)) {
-      ErrorEmitter.emit("Failed to parse json body");
-    } else {
-      MessageHandler(CurrentMessage.getData());
+    try {
+      Msg = Message::parse(Stream);
+      MessageHandler(std::move(Msg));
+    } catch (Error e) {
+      ErrorEmitter.emit(e);
     }
 
     Buffer.consume(Bytes);
-    CurrentMessage = Message();
     asio::async_read_until(*ReadStream, Buffer, '\n',
                            std::bind(&AsioMessageReader<AsioType>::handleHeader,
                                      this, std::placeholders::_1,

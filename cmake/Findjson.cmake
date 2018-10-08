@@ -13,8 +13,7 @@ find_path(json_INCLUDE_DIR
 
 if (NOT json_INCLUDE_DIR)
   ExternalProject_Add(json-ep
-    URL https://github.com/nlohmann/json/archive/v3.2.0.tar.g
-    TIMEOUT 5
+    URL https://github.com/nlohmann/json/archive/v3.3.0.tar.gz
     PREFIX "${PROJECT_BINARY_DIR}/extenal"
     CONFIGURE_COMMAND "" # Disable configure step
     BUILD_COMMAND "" # Disable build step

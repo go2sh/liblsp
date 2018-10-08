@@ -1,84 +1,35 @@
-#include "lsp/MessageConnection.h"
-
-#include <sstream>
+#include <lsp/jsonrpc/MessageConnection.h>
 
 using namespace lsp;
 
-void MessageConnection::errorHandler(const std::string &Message) {
-  Log->error(Message);
-}
+void MessageConnection::errorHandler(const Error &Message) {}
 
 void MessageConnection::closeHandler() {}
 
-static std::string getId(json &Id) {
-  if (Id.is_string())
-    return Id.get<std::string>();
-  if (Id.is_number_float())
-    return std::to_string(Id.get<float>());
-  if (Id.is_number_integer())
-    return std::to_string(Id.get<int>());
-  if (Id.is_number_float())
-    return std::to_string(Id.get<unsigned>());
-  return std::string("");
-}
-
-void MessageConnection::messageHandler(JsonPtr Data) {
-  json &Message = *Data;
-
-  // Check for parser error
-  if (!Message.is_object()) {
-    replyError(ErrorResponse<EmptyResponse>(
-        ErrorCode::ParseError, "Failed to parse message string into json."));
+void MessageConnection::messageHandler(MessagePtr Msg) {
+  switch (Msg->getType()) {
+  case Message::MessageType::Invalid:
     return;
-  }
-
-  // Check for valid json-rpc message with version 2.0
-  auto Version = Message.find("jsonrpc");
-  std::string s = (*Version).get<std::string>();
-
-  if (Version == Message.end() || !(*Version).is_string() ||
-      (*Version).get<std::string>().compare("2.0")) {
-    replyError(ErrorResponse<EmptyResponse>(
-        ErrorCode::InvalidRequest, "Expected jsonrpc object version 2.0."));
-    return;
-  }
-
-  auto Method = Message.find("method");
-  auto Id = Message.find("id");
-
-  // Check type for method, if it exists
-  if (Method != Message.end() && !Method->is_string()) {
-    replyError(ErrorResponse<EmptyResponse>(ErrorCode::InvalidRequest,
-                                            "Method type is invalid."));
-  }
-
-  // Check type for id, if it exists
-  if (Id != Message.end() &&
-      !((Id->is_string() || Id->is_number() || Id->is_null()))) {
-    replyError(ErrorResponse<EmptyResponse>(ErrorCode::InvalidRequest,
-                                            "Id type is invalid."));
-  }
-
-  if (Method != Message.end()) {
-    // Handle msg as request or notification
+  case Message::MessageType::Notification:
+  case Message::MessageType::Request: {
     std::unique_lock<std::mutex> Lock(RequestMutex);
-    RequestQueue.push(Data);
+    RequestQueue.push(std::move(Msg));
     RequestCV.notify_one();
-  } else if (Id != Message.end()) {
-    // Handle msg as response
-    std::unique_lock<std::mutex> Lock(ResponseMutex);
-    ResponseMap[getId(*Id)] = Data;
-    ResponseCV.notify_all();
-  } else {
-    replyError(ErrorResponse<EmptyResponse>(ErrorCode::InvalidRequest,
-                                            "Method or id is required."));
   }
-};
+  case Message::MessageType::Response: {
+    std::unique_lock<std::mutex> Lock(ResponseMutex);
+    ResponseMap[static_cast<ResponseMessage*>(Msg.get())->getId()] = std::move(Msg);
+    ResponseCV.notify_all();
+  }
+  }
+}
 
 void MessageConnection::listen() {
-  Reader->listen(std::bind(&MessageConnection::messageHandler,this,std::placeholders::_1));
+  Reader->listen(std::bind(&MessageConnection::messageHandler, this,
+                           std::placeholders::_1));
 }
 
+#if 0
 void MessageConnection::notify(const std::string &Method, const json &Data) {
   JsonPtr Request = std::make_shared<json>();
 
@@ -169,9 +120,9 @@ void MessageConnection::processMessageQueue() {
       replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
                                                    "Method not found"));
     } else {
-      Log->error("Notification request to unimplemented method:" +
-                       Method);
+      Log->error("Notification request to unimplemented method:" + Method);
     }
   }
   RequestQueue.pop();
 }
+#endif

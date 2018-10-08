@@ -1,10 +1,10 @@
 #ifndef LSP_MESSAGECONNECTION_H
 #define LSP_MESSAGECONNECTION_H
 
-#include "lsp/LSProtocol.h"
-#include "lsp/Logger.h"
-#include "lsp/MessageReader.h"
-#include "lsp/MessageWriter.h"
+#include <lsp/protocol/LSProtocol.h>
+#include <lsp/Logger.h>
+#include <lsp/jsonrpc/MessageReader.h>
+#include <lsp/jsonrpc/MessageWriter.h>
 
 #include <condition_variable>
 #include <functional>
@@ -32,13 +32,13 @@ class MessageConnection {
   Logger *Log;
 
   /// Queue for incomming JSON-RPC requests
-  std::queue<JsonPtr> RequestQueue;
+  std::queue<MessagePtr> RequestQueue;
   /// Lookup map for request handlers
   std::map<std::string, RequestHandler> RequestHandlers;
   /// Lookup map for notification handlers
   std::map<std::string, NotificationHandler> NotificationHandlers;
   /// Lookup map for response data
-  std::map<std::string, JsonPtr> ResponseMap;
+  std::map<std::string, MessagePtr> ResponseMap;
 
   // Thread mutexes
   std::mutex RequestMutex;
@@ -77,43 +77,12 @@ public:
   /// Start listening for incomming messages
   void listen();
 
-  /** Reply to request with an error
-   *
-   */
-  template <typename T>
-  void replyError(const json &Id, const ErrorResponse<T> &Response) {
-    JsonPtr Reply = std::make_shared<json>();
-    (*Reply)["jsonrpc"] = "2.0";
-    (*Reply)["id"] = Id;
-    (*Reply)["error"] = Response.dump();
-
-    Writer->write(Reply);
-  }
-
-  /** Reply with an error
-   *
-   */
-  template <typename T> void replyError(const ErrorResponse<T> &Response) {
-    replyError(json(), Response);
-  }
-
-  /** Call a remote method
-   */
-  JsonPtr call(const std::string &Method, const json &Params);
-  void request(const std::string &Method, const std::string &Id,
-               const json &Data);
-  void notify(const std::string &Method, const json &Data);
-
-  void registerHandler(const std::string &Method, RequestHandler Handler) {
-    RequestHandlers[Method] = Handler;
-  }
-
   void processMessageQueue();
 
 private:
-  void errorHandler(const std::string &Message);
+  void errorHandler(const Error &Err);
   void closeHandler();
-  void messageHandler(JsonPtr Data);
+  void messageHandler(MessagePtr Data);
 };
 } // namespace lsp
 #endif

@@ -14,12 +14,7 @@ namespace lsp {
 
 enum class TraceLevels { Off, Messages, Verbose };
 
-enum class ErrorCode {
-  ParseError = -32700,
-  InvalidRequest = -32600,
-  MethodNotFound = -32601,
-  InvalidParams = -32602,
-  InternalError = -32603,
+enum class ProtocolErrorCode {
   serverErrorStart = -32099,
   serverErrorEnd = -32000,
   ServerNotInitialized = -32002,
@@ -31,26 +26,6 @@ enum class ErrorCode {
 
 struct EmptyResponse {
   json dump() const { return json(); }
-};
-
-template <typename T> struct ErrorResponse {
-  ErrorCode Code;
-  std::string Message;
-  optional<T> Data;
-
-  ErrorResponse(ErrorCode Code, const std::string &Message)
-      : Code(Code), Message(Message) {}
-
-  json dump() const {
-    json Response;
-    Response["code"] = Code;
-    Response["message"] = Message;
-    if (Data) {
-      Response["data"] = Data.value().dump();
-    }
-
-    return Response;
-  }
 };
 
 struct Position {
@@ -356,9 +331,11 @@ struct InitializeResult {
   }
 };
 
-enum class MessageType { Error = 1, Warning = 2, Info = 3, Log = 4 };
+
 
 struct LogMessageParams {
+  enum class MessageType { Error = 1, Warning = 2, Info = 3, Log = 4 };
+
   MessageType type;
   std::string message;
 
