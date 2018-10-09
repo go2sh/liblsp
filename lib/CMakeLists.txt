@@ -1,6 +1,7 @@
 add_library(lsp
     jsonrpc/Message.cpp
     jsonrpc/MessageConnection.cpp
+    jsonrpc/MessageReader.cpp
     #MessageHandler.cpp
     
     #LSProtocol.cpp

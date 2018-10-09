@@ -9,17 +9,19 @@ void MessageConnection::closeHandler() {}
 void MessageConnection::messageHandler(MessagePtr Msg) {
   switch (Msg->getType()) {
   case Message::MessageType::Invalid:
-    return;
+    break;
   case Message::MessageType::Notification:
   case Message::MessageType::Request: {
     std::unique_lock<std::mutex> Lock(RequestMutex);
     RequestQueue.push(std::move(Msg));
     RequestCV.notify_one();
+    break;
   }
   case Message::MessageType::Response: {
     std::unique_lock<std::mutex> Lock(ResponseMutex);
     ResponseMap[static_cast<ResponseMessage*>(Msg.get())->getId()] = std::move(Msg);
     ResponseCV.notify_all();
+    break;
   }
   }
 }
