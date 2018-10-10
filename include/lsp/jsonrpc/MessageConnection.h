@@ -82,6 +82,11 @@ public:
     RequestHandlers[Type.method()] = Type.getRequestFunction(Func);
   }
 
+  template <typename ParamType>
+  void registerRequestHandler(NotificationType<ParamType> &Type, std::function<void(const ParamType&)> Func) {
+    NotificationHandlers[Type.method()] = Type.getNotificationFunc(Func);
+  }
+
   void processMessageQueue();
 
 private:

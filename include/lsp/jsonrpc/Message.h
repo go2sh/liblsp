@@ -153,6 +153,14 @@ public:
 template <typename ParamType> class NotificationType : public MessageType {
 public:
   NotificationType(std::string Method) : MessageType(Method) {}
+
+  std::function<void(const json &)>
+  getNotificationFunc(std::function<void(const ParamType &)> Func) {
+    return [Func](const json &JsonParams) {
+      ParamType Params = JsonParams;
+      Func(Params);
+    };
+  }
 };
 
 } // namespace lsp

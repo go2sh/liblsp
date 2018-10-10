@@ -122,3 +122,27 @@ void lsp::to_json(json &Data, const CompletionItem<EmptyCompletionData> &Item) {
   Data["label"] = Item.Label;
   Data["kind"] = Item.Kind;
 }
+
+/*
+ * Language Features
+ */
+void lsp::to_json(json &Data, const FormattingOptions &Item) {
+  Data["tabSize"] = Item.TabSize;
+  Data["insertSpaces"] = Item.InsertSpaces;
+}
+
+void lsp::from_json(const json &Data, FormattingOptions &Item) {
+  Item.TabSize = Data.at("tabSize");
+  Item.InsertSpaces = Data.at("insertSpaces");
+}
+
+void lsp::to_json(json &Data, const DocumentFormattingParams &Item)  {
+  Data["textDocument"] = Item.TextDocument;
+  Data["options"] = Item.Options;
+}
+
+void lsp::from_json(const json &Data, DocumentFormattingParams &Item){
+  Item.TextDocument = Data.at("textDocument");
+  Item.Options = Data.at("options");
+}
+RequestType<DocumentFormattingParams, std::vector<TextEdit>> lsp::TextDocumentFormatting("textDocument/formatting");
