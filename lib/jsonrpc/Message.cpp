@@ -38,3 +38,7 @@ MessagePtr Message::parse(std::istream &Stream) {
 
   return Msg;
 }
+
+MessagePtr ResponseMessage::fromRequest(RequestMessage &Msg) {
+  return std::make_unique<ResponseMessage>(Msg.getId());
+}

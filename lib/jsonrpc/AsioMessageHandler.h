@@ -98,20 +98,20 @@ private:
 template <typename AsioType> class AsioMessageWriter : public MessageWriter {
   std::shared_ptr<AsioType> WriteStream;
 
-  std::queue<JsonPtr> WriteQueue;
+  std::queue<MessagePtr> WriteQueue;
   std::mutex QueueMutex;
   std::mutex WriteMutex;
 
   std::string Header;
-  std::string Data;
+  asio::streambuf Buffer;
 
 public:
   AsioMessageWriter(std::shared_ptr<AsioType> WriteStream)
       : WriteStream(WriteStream) {}
 
-  virtual void write(JsonPtr JsonData) {
+  virtual void write(MessagePtr Msg) {
     std::unique_lock<std::mutex> Lock(QueueMutex);
-    WriteQueue.push(JsonData);
+    WriteQueue.push(std::move(Msg));
     if (WriteQueue.size() == 1) {
       startWrite();
     }
@@ -119,11 +119,12 @@ public:
 
 private:
   void startWrite() {
+    MessagePtr Msg = std::move(WriteQueue.front());
     std::stringstream HeaderStream;
-    JsonPtr JsonData = WriteQueue.front();
-
-    Data = JsonData->dump();
-    HeaderStream << "Content-Length: " << Data.size() << "\r\n\r\n";
+    std::ostream Stream(&Buffer);
+    
+    Stream << *Msg;
+    HeaderStream << "Content-Length: " << Buffer.size() << "\r\n\r\n";
     Header = HeaderStream.str();
 
     asio::async_write(*WriteStream, asio::buffer(Header),
@@ -132,7 +133,7 @@ private:
   }
 
   void handleHeader(asio::error_code ErrorCode, std::size_t Bytes) {
-    asio::async_write(*WriteStream, asio::buffer(Data),
+    asio::async_write(*WriteStream, Buffer,
                       std::bind(&AsioMessageWriter::handleBody, this,
                                 std::placeholders::_1, std::placeholders::_2));
   }

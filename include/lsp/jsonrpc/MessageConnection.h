@@ -19,7 +19,7 @@ using json = nlohmann::json;
 namespace lsp {
 
 typedef std::function<void(const json &)> NotificationHandler;
-typedef std::function<json(const json &)> RequestHandler;
+typedef std::function<void(const json &, json &)> RequestHandler;
 
 /// Message connection for passing messages between client and server
 /// The MessageConnection class is thread save for all operations.
@@ -76,6 +76,11 @@ public:
 
   /// Start listening for incomming messages
   void listen();
+
+  template <typename T1, typename T2>
+  void registerRequestHandler(RequestType<T1,T2> &Type, std::function<T2(const T1&)> Func) {
+    RequestHandlers[Type.method()] = Type.getRequestFunction(Func);
+  }
 
   void processMessageQueue();
 

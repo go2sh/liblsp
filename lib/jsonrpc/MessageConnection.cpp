@@ -79,6 +79,7 @@ void MessageConnection::request(const std::string &Method,
 
   Writer->write(Request);
 }
+#endif
 
 void MessageConnection::processMessageQueue() {
   std::unique_lock<std::mutex> Lock(RequestMutex);
@@ -88,43 +89,18 @@ void MessageConnection::processMessageQueue() {
     RequestCV.wait(Lock, [this]() { return RequestQueue.size() != 0; });
   }
 
-  JsonPtr Data = RequestQueue.front();
-  json &Message = *Data;
-  std::string Method = Message.find("method")->get<std::string>();
-  auto Id = Message.find("id");
-  auto Handler = RequestHandlers.find(Method);
-  JsonPtr Response = std::make_shared<json>();
-
-  if (Handler != RequestHandlers.end()) {
-    if (Id != Message.end()) {
-      (*Response)["jsonrpc"] = "2.0";
-      (*Response)["id"] = *Id;
-
-      try {
-        (Handler->second)(Message["params"], (*Response)["result"]);
-      } catch (const json::out_of_range &E) {
-        replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::InvalidParams,
-                                                     E.what()));
-      } catch (...) {
-        replyError(*Id,
-                   ErrorResponse<EmptyResponse>(ErrorCode::InternalError,
-                                                "Unexpected error happend"));
-      }
-      Writer->write(Response);
-    } else {
-      try {
-        (Handler->second)(Message["params"], (*Response)["result"]);
-      } catch (...) {
-      }
-    }
-  } else {
-    if (Id != Message.end()) {
-      replyError(*Id, ErrorResponse<EmptyResponse>(ErrorCode::MethodNotFound,
-                                                   "Method not found"));
-    } else {
-      Log->error("Notification request to unimplemented method:" + Method);
-    }
-  }
+  MessagePtr Msg = std::move(RequestQueue.front());
   RequestQueue.pop();
+  if (Msg->isRequest()) {
+    RequestMessage *Req = static_cast<RequestMessage*>(Msg.get());
+    MessagePtr RespMsg = ResponseMessage::fromRequest(*Req);
+    ResponseMessage *Resp = static_cast<ResponseMessage*>(RespMsg.get());
+
+    auto Handler = RequestHandlers.find(Req->getMethod());
+    if (Handler != RequestHandlers.end()) {
+      Handler->second(Req->getParams(), Resp->getResult());
+    }
+
+    Writer->write(std::move(RespMsg));
+  }
 }
-#endif

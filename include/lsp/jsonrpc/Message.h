@@ -47,7 +47,18 @@ public:
   RequestMessage(json &&Data)
       : Message(Message::MessageType::Request, std::move(Data)) {}
 
-  std::string getId() { return Data.at("id"); }
+  std::string getId() {
+    json &Id = Data.at("id");
+    if (Id.is_string())
+      return Id.get<std::string>();
+    if (Id.is_number_float())
+      return std::to_string(Id.get<float>());
+    if (Id.is_number_integer())
+      return std::to_string(Id.get<int>());
+    if (Id.is_number_float())
+      return std::to_string(Id.get<unsigned>());
+    return std::string("");
+  }
   std::string getMethod() { return Data.at("method"); }
 
   json &getParams() { return Data.at("params"); }
@@ -128,6 +139,15 @@ template <typename ParamType, typename ReturnType>
 class RequestType : public MessageType {
 public:
   RequestType(std::string Method) : MessageType(Method) {}
+
+  std::function<void(const json &, json &)>
+  getRequestFunction(std::function<ReturnType(const ParamType &)> Func) {
+    return [Func](const json &JsonParams, json &JsonResult) {
+      ParamType Params = JsonParams;
+      ReturnType Result = Func(Params);
+      JsonResult = Result;
+    };
+  }
 };
 
 template <typename ParamType> class NotificationType : public MessageType {

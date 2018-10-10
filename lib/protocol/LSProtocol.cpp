@@ -1,6 +1,9 @@
-#include "lsp/LSProtocol.h"
+#include <lsp/protocol/LSProtocol.h>
+#include <lsp/jsonrpc/Message.h>
 
 using namespace lsp;
+
+RequestType<InitializeParams<std::string>, InitializeResult> lsp::InitializeRequest("initialize");
 
 void Position::parse(json::object_t *Position) {
   if (Position->find("line") != Position->end()) {
