@@ -207,6 +207,7 @@ struct TextDocumentItem {
   uint32_t Version;
   std::string Text;
 
+  friend void from_json(const json &Data, TextDocumentItem &Item);
   friend void to_json(json &Data, const TextDocumentItem &Item) {
     Data["uri"] = Item.Uri;
     Data["languageId"] = Item.LanguageId;
@@ -214,6 +215,7 @@ struct TextDocumentItem {
     Data["text"] = Item.Text;
   }
 };
+void from_json(const json &Data, TextDocumentItem &Item);
 
 struct DocumentFilter {
   std::optional<std::string> Language;
@@ -347,6 +349,8 @@ struct LogMessageParams {
 void to_json(json &Data, const LogMessageParams &Params);
 void from_json(const json &Data, LogMessageParams &Params);
 
+extern NotificationType<LogMessageParams> ShowMessage;
+
 struct TextDocumentPositionParams {
   lsp::TextDocumentIdentifier TextDocument;
   lsp::Position Position;
@@ -354,6 +358,15 @@ struct TextDocumentPositionParams {
   friend void from_json(const json &Params, TextDocumentPositionParams &TDP);
 };
 void from_json(const json &Params, TextDocumentPositionParams &TDP);
+
+struct TextDocumentDidOpenParams {
+  TextDocumentItem TextDocument;
+
+  friend void from_json(const json &Params, TextDocumentDidOpenParams &TDP);
+};
+void from_json(const json &Params, TextDocumentDidOpenParams &TDP);
+
+extern NotificationType<TextDocumentDidOpenParams> TextDocumentDidOpen;
 
 /*
  * Workspace changes
@@ -375,6 +388,7 @@ struct TextDocumentDidChangeParams {
   friend void from_json(const json &Params, TextDocumentDidChangeParams &DCP);
 };
 void from_json(const json &Params, TextDocumentDidChangeParams &DCP);
+extern NotificationType<TextDocumentDidChangeParams> TextDocumentDidChange;
 
 enum class MarkupKind { Plaintext, Markdown };
 

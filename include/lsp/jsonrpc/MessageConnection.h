@@ -1,10 +1,10 @@
 #ifndef LSP_MESSAGECONNECTION_H
 #define LSP_MESSAGECONNECTION_H
 
-#include <lsp/protocol/LSProtocol.h>
 #include <lsp/Logger.h>
 #include <lsp/jsonrpc/MessageReader.h>
 #include <lsp/jsonrpc/MessageWriter.h>
+#include <lsp/protocol/LSProtocol.h>
 
 #include <condition_variable>
 #include <functional>
@@ -56,11 +56,11 @@ class MessageConnection {
 
 public:
   MessageConnection(MessageReader *Reader, MessageWriter *Writer)
-        : Reader(Reader), Writer(Writer), Log(new NullLogger()) {
-      Reader->onError(std::bind(&MessageConnection::errorHandler, this,
-                                std::placeholders::_1));
-      Reader->onClose(std::bind(&MessageConnection::closeHandler, this));
-    };
+      : Reader(Reader), Writer(Writer), Log(new NullLogger()) {
+    Reader->onError(std::bind(&MessageConnection::errorHandler, this,
+                              std::placeholders::_1));
+    Reader->onClose(std::bind(&MessageConnection::closeHandler, this));
+  };
   MessageConnection(MessageReader *Reader, MessageWriter *Writer, Logger *Log)
       : Reader(Reader), Writer(Writer), Log(Log) {
     Reader->onError(std::bind(&MessageConnection::errorHandler, this,
@@ -72,13 +72,24 @@ public:
   void listen();
 
   template <typename T1, typename T2>
-  void registerRequestHandler(RequestType<T1,T2> &Type, std::function<T2(const T1&)> Func) {
+  void registerRequestHandler(RequestType<T1, T2> &Type,
+                              std::function<T2(const T1 &)> Func) {
     RequestHandlers[Type.method()] = Type.getRequestFunction(Func);
   }
 
   template <typename ParamType>
-  void registerRequestHandler(NotificationType<ParamType> &Type, std::function<void(const ParamType&)> Func) {
+  void
+  registerNotificationHandler(NotificationType<ParamType> &Type,
+                              std::function<void(const ParamType &)> Func) {
     NotificationHandlers[Type.method()] = Type.getNotificationFunc(Func);
+  }
+
+  template <typename ParamType>
+  void sendNotification(NotificationType<ParamType> Type, const ParamType &Params) {
+    std::unique_ptr<NotificationMessage> Msg = std::make_unique<NotificationMessage>(Type.method());
+    json &JsonParams = Msg->getParams();
+    JsonParams = Params;
+    Writer->write(std::move(Msg));
   }
 
   void processMessageQueue();
@@ -87,11 +98,13 @@ private:
   void errorHandler(const Error &Err);
   void closeHandler();
   void messageHandler(MessagePtr Data);
-  
-  void handleRequest(const RequestMessage &Msg);
-  void handleNotification(const NotificationMessage &Msg);
-  void handleResponse(const ResponseMessage &Msg);
-  void handleInvalid(const Message &Msg);
+
+  void handleRequest(RequestMessage &Msg);
+  void handleNotification(NotificationMessage &Msg);
+  void handleResponse(ResponseMessage &Msg);
+  void handleInvalid(Message &Msg);
 };
+
+std::shared_ptr<MessageConnection> MesssageConnectionPtr;
 } // namespace lsp
 #endif

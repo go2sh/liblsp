@@ -42,3 +42,9 @@ MessagePtr Message::parse(std::istream &Stream) {
 MessagePtr ResponseMessage::fromRequest(RequestMessage &Msg) {
   return std::make_unique<ResponseMessage>(Msg.getId());
 }
+
+MessagePtr createNotification(const std::string &Method) {
+  std::unique_ptr<NotificationMessage> Msg = std::make_unique<NotificationMessage>(Method);
+
+  return Msg;
+}

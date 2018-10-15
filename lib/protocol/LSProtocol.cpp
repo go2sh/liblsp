@@ -1,9 +1,10 @@
-#include <lsp/protocol/LSProtocol.h>
 #include <lsp/jsonrpc/Message.h>
+#include <lsp/protocol/LSProtocol.h>
 
 using namespace lsp;
 
-RequestType<InitializeParams<std::string>, InitializeResult> lsp::InitializeRequest("initialize");
+RequestType<InitializeParams<std::string>, InitializeResult>
+    lsp::InitializeRequest("initialize");
 
 void Position::parse(json::object_t *Position) {
   if (Position->find("line") != Position->end()) {
@@ -57,7 +58,16 @@ void lsp::to_json(json &Data, const LogMessageParams &Params) {
 }
 
 void lsp::from_json(const json &Data, LogMessageParams &Params) {
+  //TODO:
+}
 
+NotificationType<LogMessageParams> ShowMessage("window/showMessage");
+
+void lsp::from_json(const json &Data, TextDocumentItem &Item) {
+  Item.Uri = Data.at("uri");
+  Item.LanguageId = Data.at("languageId");
+  Item.Version = Data.at("version");
+  Item.Text = Data.at("text");
 }
 
 void lsp::from_json(const json &Params, TextDocumentPositionParams &TDP) {
@@ -65,7 +75,7 @@ void lsp::from_json(const json &Params, TextDocumentPositionParams &TDP) {
   TDP.Position = Params.at("position");
 }
 
-void lsp::to_json(json &Data, const SaveOptions &O){
+void lsp::to_json(json &Data, const SaveOptions &O) {
   Data["includeText"] = O.IncluedeText;
 }
 
@@ -80,6 +90,13 @@ void lsp::to_json(json &Data, const TextDocumentSyncOptions &O) {
 /*
  * Workspace sync
  */
+
+void lsp::from_json(const json &Params, TextDocumentDidOpenParams &TDO) {
+  TDO.TextDocument = Params.at("textDocument");
+}
+NotificationType<TextDocumentDidOpenParams>
+    lsp::TextDocumentDidOpen("textDocument/didOpen");
+
 void lsp::from_json(const json &Data, TextDocumentContentChangeEvent &CCE) {
   auto Range = Data.find("range");
   if (Range != Data.end()) {
@@ -94,8 +111,12 @@ void lsp::from_json(const json &Data, TextDocumentContentChangeEvent &CCE) {
 
 void lsp::from_json(const json &Params, TextDocumentDidChangeParams &DCP) {
   DCP.TextDocument = Params.at("textDocument");
-  DCP.ContentChanges = Params.at("contentChanges").get<std::vector<lsp::TextDocumentContentChangeEvent>>();
+  DCP.ContentChanges =
+      Params.at("contentChanges")
+          .get<std::vector<lsp::TextDocumentContentChangeEvent>>();
 }
+NotificationType<TextDocumentDidChangeParams>
+    lsp::TextDocumentDidChange("textDocument/didChange");
 
 void lsp::to_json(json &Data, const CompletionOptions &O) {
   Data["resolveProvider"] = O.ResolveProvider;
@@ -136,13 +157,14 @@ void lsp::from_json(const json &Data, FormattingOptions &Item) {
   Item.InsertSpaces = Data.at("insertSpaces");
 }
 
-void lsp::to_json(json &Data, const DocumentFormattingParams &Item)  {
+void lsp::to_json(json &Data, const DocumentFormattingParams &Item) {
   Data["textDocument"] = Item.TextDocument;
   Data["options"] = Item.Options;
 }
 
-void lsp::from_json(const json &Data, DocumentFormattingParams &Item){
+void lsp::from_json(const json &Data, DocumentFormattingParams &Item) {
   Item.TextDocument = Data.at("textDocument");
   Item.Options = Data.at("options");
 }
-RequestType<DocumentFormattingParams, std::vector<TextEdit>> lsp::TextDocumentFormatting("textDocument/formatting");
+RequestType<DocumentFormattingParams, std::vector<TextEdit>>
+    lsp::TextDocumentFormatting("textDocument/formatting");

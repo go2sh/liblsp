@@ -12,6 +12,7 @@ lsp::InitializeResult asd(const lsp::InitializeParams<std::string> &Params) {
   lsp::InitializeResult res;
   res.Capabilities.DocumentFormattingProvider = true;
   res.Capabilities.TextDocumentSync.OpenClose = true;
+  res.Capabilities.TextDocumentSync.Change = lsp::TextDocumentSyncKind::Full;
   return res;
 }
 std::vector<lsp::TextEdit> format(const lsp::DocumentFormattingParams &Params) {
@@ -23,18 +24,32 @@ std::vector<lsp::TextEdit> format(const lsp::DocumentFormattingParams &Params) {
   return Edits;
 }
 
+void TDopen(const lsp::TextDocumentDidOpenParams &Params) {
+  return;
+}
+
+void TDchange(const lsp::TextDocumentDidChangeParams &Params) {
+  return;
+}
+
 int main(int argc, char *argv[]) {
   asio::io_service service;
   lsp::MessageConnection *Con = lsp::createAsioTCPConnection(service, "localhost","19191");
   std::function<lsp::InitializeResult(const lsp::InitializeParams<std::string>&)> Func(&asd);
   Con->registerRequestHandler(lsp::InitializeRequest, Func);
   Con->registerRequestHandler(lsp::TextDocumentFormatting, std::function(&format));
+  Con->registerNotificationHandler(lsp::TextDocumentDidOpen, std::function(&TDopen));
+  Con->registerNotificationHandler(lsp::TextDocumentDidChange, std::function(&TDchange));
   Con->listen();
 
   try {
       std::thread asd([Con] {
-    while (true)
-    Con->processMessageQueue();
+        try {
+          while (true)
+          Con->processMessageQueue();
+        } catch(...) {
+          return;
+        }
   });
      service.run();
   }

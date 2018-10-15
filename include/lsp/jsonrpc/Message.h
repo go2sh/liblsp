@@ -100,6 +100,8 @@ public:
 
   std::string getMethod() const { return Data.at("method"); }
   json &getParams() { return Data["params"]; }
+
+  static MessagePtr createNotification(const std::string &Method);
 };
 
 enum ErrorCode {

@@ -19,7 +19,8 @@ void MessageConnection::messageHandler(MessagePtr Msg) {
   }
   case Message::MessageType::Response: {
     std::unique_lock<std::mutex> Lock(ResponseMutex);
-    ResponseMap[static_cast<ResponseMessage*>(Msg.get())->getId()] = std::move(Msg);
+    ResponseMap[static_cast<ResponseMessage *>(Msg.get())->getId()] =
+        std::move(Msg);
     ResponseCV.notify_all();
     break;
   }
@@ -91,16 +92,45 @@ void MessageConnection::processMessageQueue() {
 
   MessagePtr Msg = std::move(RequestQueue.front());
   RequestQueue.pop();
-  if (Msg->isRequest()) {
-    RequestMessage *Req = static_cast<RequestMessage*>(Msg.get());
-    MessagePtr RespMsg = ResponseMessage::fromRequest(*Req);
-    ResponseMessage *Resp = static_cast<ResponseMessage*>(RespMsg.get());
+  switch (Msg->getType()) {
+  case lsp::Message::MessageType::Request: {
+    RequestMessage &Req = *static_cast<RequestMessage *>(Msg.get());
+    handleRequest(Req);
+    break;
+  }
+  case lsp::Message::MessageType::Notification: {
+    NotificationMessage &Notification =
+        *static_cast<NotificationMessage *>(Msg.get());
+    handleNotification(Notification);
+    break;
+  }
+  case lsp::Message::MessageType::Response:
+  case lsp::Message::MessageType::Invalid:
+    break;
+  }
+}
 
-    auto Handler = RequestHandlers.find(Req->getMethod());
-    if (Handler != RequestHandlers.end()) {
-      Handler->second(Req->getParams(), Resp->getResult());
+void MessageConnection::handleRequest(RequestMessage &Msg) {
+  MessagePtr RespMsg = ResponseMessage::fromRequest(Msg);
+  ResponseMessage &Resp = *static_cast<ResponseMessage *>(RespMsg.get());
+
+  auto Handler = RequestHandlers.find(Msg.getMethod());
+  if (Handler != RequestHandlers.end()) {
+    try {
+      Handler->second(Msg.getParams(), Resp.getResult());
+    } catch (...) {
+      // TODO:
     }
-
-    Writer->write(std::move(RespMsg));
+  }
+  Writer->write(std::move(RespMsg));
+}
+void MessageConnection::handleNotification(NotificationMessage &Msg) {
+  auto Handler = NotificationHandlers.find(Msg.getMethod());
+  if (Handler != NotificationHandlers.end()) {
+    try {
+      Handler->second(Msg.getParams());
+    } catch (...) {
+      // TODO:
+    }
   }
 }

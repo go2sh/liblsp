@@ -1,8 +1,8 @@
 #ifndef LSP_LANGUAGESERVER_H
 #define LSP_LANGUAGESERVER_H
 
-#include "lsp/LSProtocol.h"
-#include "lsp/MessageConnection.h"
+#include <lsp/protocol/LSProtocol.h>
+#include <lsp/jsonrpc/MessageConnection.h>
 
 #include <functional>
 #include <type_traits>

@@ -87,7 +87,6 @@ private:
       ErrorEmitter.emit(e);
     }
 
-    Buffer.consume(Bytes);
     asio::async_read_until(*ReadStream, Buffer, '\n',
                            std::bind(&AsioMessageReader<AsioType>::handleHeader,
                                      this, std::placeholders::_1,
