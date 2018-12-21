@@ -27,6 +27,7 @@ if (NOT asio_INCLUDE_DIR)
   set(asio_INCLUDE_DIR ${source_dir}/include)
 endif()
 
+# Define asio parameters
 add_library(asio INTERFACE)
 target_include_directories(asio INTERFACE ${asio_INCLUDE_DIR})
 target_compile_definitions(asio INTERFACE -DASIO_STANDALONE)
@@ -34,7 +35,10 @@ if (WIN32)
   target_compile_definitions(asio INTERFACE -D_WIN32_WINNT=0x0601)
 endif()
 
+# Add asio-ep target to asio lib if exists
+if (TARGET asio-ep)
+  add_dependencies(asio asio-ep)
+endif()
+
 mark_as_advanced(asio_INCLUDE_DIR)
-find_package_handle_standard_args(asio
-  REQUIRED_VARS asio_INCLUDE_DIR
-  )
+find_package_handle_standard_args(asio REQUIRED_VARS asio_INCLUDE_DIR)

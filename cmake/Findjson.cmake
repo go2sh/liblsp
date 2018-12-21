@@ -29,7 +29,10 @@ endif()
 add_library(json INTERFACE)
 target_include_directories(json INTERFACE ${json_INCLUDE_DIR})
 
+# Add json-ep target to json
+if (TARGET json-ep)
+  add_dependencies(json json-ep)
+endif()
+
 mark_as_advanced(json_INCLUDE_DIR)
-find_package_handle_standard_args(json
-  REQUIRED_VARS json_INCLUDE_DIR
-  )
+find_package_handle_standard_args(json REQUIRED_VARS json_INCLUDE_DIR)
