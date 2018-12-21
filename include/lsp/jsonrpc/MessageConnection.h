@@ -105,6 +105,6 @@ private:
   void handleInvalid(Message &Msg);
 };
 
-std::shared_ptr<MessageConnection> MesssageConnectionPtr;
+typedef std::shared_ptr<MessageConnection> MesssageConnectionPtr;
 } // namespace lsp
 #endif

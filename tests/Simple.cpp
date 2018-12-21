@@ -19,42 +19,42 @@ std::vector<lsp::TextEdit> format(const lsp::DocumentFormattingParams &Params) {
   std::vector<lsp::TextEdit> Edits;
   lsp::TextEdit Edit;
   Edit.NewText = "Hello";
-  Edit.Range = {{1,1}, {1,1}};
+  Edit.Range = {{1, 1}, {1, 1}};
   Edits.push_back(std::move(Edit));
   return Edits;
 }
 
-void TDopen(const lsp::TextDocumentDidOpenParams &Params) {
-  return;
-}
+void TDopen(const lsp::TextDocumentDidOpenParams &Params) { return; }
 
-void TDchange(const lsp::TextDocumentDidChangeParams &Params) {
-  return;
-}
+void TDchange(const lsp::TextDocumentDidChangeParams &Params) { return; }
 
 int main(int argc, char *argv[]) {
   asio::io_service service;
-  lsp::MessageConnection *Con = lsp::createAsioTCPConnection(service, "localhost","19191");
-  std::function<lsp::InitializeResult(const lsp::InitializeParams<std::string>&)> Func(&asd);
+  lsp::MessageConnection *Con =
+      lsp::createAsioTCPConnection(service, "localhost", "19191");
+  std::function<lsp::InitializeResult(
+      const lsp::InitializeParams<std::string> &)>
+      Func(&asd);
   Con->registerRequestHandler(lsp::InitializeRequest, Func);
-  Con->registerRequestHandler(lsp::TextDocumentFormatting, std::function(&format));
-  Con->registerNotificationHandler(lsp::TextDocumentDidOpen, std::function(&TDopen));
-  Con->registerNotificationHandler(lsp::TextDocumentDidChange, std::function(&TDchange));
+  Con->registerRequestHandler(lsp::TextDocumentFormatting,
+                              std::function(&format));
+  Con->registerNotificationHandler(lsp::TextDocumentDidOpen,
+                                   std::function(&TDopen));
+  Con->registerNotificationHandler(lsp::TextDocumentDidChange,
+                                   std::function(&TDchange));
   Con->listen();
 
   try {
-      std::thread asd([Con] {
-        try {
-          while (true)
+    std::thread asd([Con] {
+      try {
+        while (true)
           Con->processMessageQueue();
-        } catch(...) {
-          return;
-        }
-  });
-     service.run();
-  }
-  catch (std::exception& e)
-  {
+      } catch (...) {
+        return;
+      }
+    });
+    service.run();
+  } catch (std::exception &e) {
     std::cerr << "Exception: " << e.what() << "\n";
   }
   return 0;
